@@ -15,43 +15,18 @@ namespace Utilities.AssetsCache
 {
     public class AssetsCache : EditorWindow
     {
-
-        #region File Path
-
-        /// <summary>
-        /// 基础名称
-        /// </summary>
-        internal const string BaseName = "AssetsCache.json";
-
-        /// <summary>
-        /// 项目路径
-        /// </summary>
-        private static readonly string s_ProjectPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../"));
-
-        /// <summary>
-        /// 用户设置路径
-        /// </summary>
-        private static readonly string s_UserSettingsPath = Path.Combine(s_ProjectPath, "UserSettings");
-
-        /// <summary>
-        /// 本地序列化文件路径模板
-        /// </summary>
-        internal static readonly string LocalFilePathTemplate = Path.GetFullPath(Path.Combine(s_UserSettingsPath, BaseName));
-
-        #endregion
-
         #region Local Storage
 
-        /// <summary>
-        /// 获取本地序列化的数据
-        /// </summary>
-        /// <param name="path"></param>
-        /// <returns></returns>
+        internal const string BaseName = "AssetsCache.json";
+        private static readonly string s_ProjectPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../"));
+        private static readonly string s_UserSettingsPath = Path.Combine(s_ProjectPath, "UserSettings");
+        internal static readonly string LocalFilePathTemplate = Path.GetFullPath(Path.Combine(s_UserSettingsPath, BaseName));
+
         internal static T GetLocal<T>(string path) where T : new()
         {
             if (!File.Exists(path))
             {
-                return new T();
+                return default;
             }
             string jsonString = File.ReadAllText(path, Encoding.UTF8);
             try
@@ -61,15 +36,10 @@ namespace Utilities.AssetsCache
             catch (Exception e)
             {
                 Debug.LogError(e);
-                return new T();
+                return default;
             }
         }
 
-        /// <summary>
-        /// 将数据序列化到本地
-        /// </summary>
-        /// <param name="path"></param>
-        /// <param name="value"></param>
         internal static void SetLocal<T>(string path, T value)
         {
             if (!File.Exists(path))
@@ -913,26 +883,18 @@ namespace Utilities.AssetsCache
         private void Save()
         {
             SetLocal(LocalFilePathTemplate, new EditorCacheSave { tabs = tabs });
-            //string data = JsonUtility.ToJson(new EditorCacheSave { tabs = tabs });
-            //EditorPrefs.SetString(Application.dataPath + StrSaveName, data);
         }
 
         private void Read()
         {
-            //var data = EditorPrefs.GetString(Application.dataPath + StrSaveName);
 
             EditorCacheSave editorCacheSave;
             editorCacheSave = GetLocal<EditorCacheSave>(LocalFilePathTemplate);
-
-            //if (string.IsNullOrEmpty(data))
-            //{
-            //    editorCacheSave = new EditorCacheSave
-            //    { tabs = new List<CacheTabInfo> { new CacheTabInfo() { id = 0, tabName = "Common" } } };
-            //}
-            //else
-            //{
-            //    editorCacheSave = JsonUtility.FromJson<EditorCacheSave>(data);
-            //}
+            if (editorCacheSave == null)
+            {
+                editorCacheSave = new EditorCacheSave
+                { tabs = new List<CacheTabInfo> { new CacheTabInfo() { id = 0, tabName = "Common" } } };
+            }
 
             tabs.Clear();
             tabs.AddRange(editorCacheSave.tabs);
