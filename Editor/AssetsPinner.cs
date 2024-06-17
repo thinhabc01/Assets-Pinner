@@ -11,15 +11,15 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
-namespace Utilities.AssetsCache
+namespace Tools.AssetsPinner
 {
-    public class AssetsCache : EditorWindow
+    public class AssetsPinner : EditorWindow
     {
         #region Local Storage
-
-        internal const string BaseName = "AssetsCache.json";
         private static readonly string s_ProjectPath = Path.GetFullPath(Path.Combine(Application.dataPath, "../"));
         private static readonly string s_UserSettingsPath = Path.Combine(s_ProjectPath, "UserSettings");
+
+        internal const string BaseName = "AssetsPinner.json";
         internal static readonly string LocalFilePathTemplate = Path.GetFullPath(Path.Combine(s_UserSettingsPath, BaseName));
 
         internal static T GetLocal<T>(string path) where T : new()
@@ -53,43 +53,14 @@ namespace Utilities.AssetsCache
 
         #endregion
 
-
-        private const string StrSaveName = "AssetsCacheSave";
         private const string StrShowTab = "Tabs";
         private const string StrShowOptions = "Options";
-        private const string StrDone = "Done";
-        private const string StrEdit = "Edit";
         private const string StrReset = "Reset";
         private const string StrDrag = "Drag and drop assets here";
         private const string StrOpen = "Ping";
         private const string StrRemove = "-";
-        private const string StrShowPath = "Show path";
-        private const string StrShowNumber = "Show number";
         private bool isDrag;
-        private bool _showPath;
-        private float contentWidth;
 
-        private bool ShowPath
-        {
-            get => _showPath;
-            set
-            {
-                _showPath = value;
-                EditorPrefs.SetBool("Assets_Cache_ShowPath", value);
-            }
-        }
-
-        private bool _showNumber;
-
-        private bool ShowNumber
-        {
-            get => _showNumber;
-            set
-            {
-                _showNumber = value;
-                EditorPrefs.SetBool("Assets_Cache_ShowNumber", value);
-            }
-        }
 
         public List<CacheTabInfo> tabs = new List<CacheTabInfo>() { new CacheTabInfo { id = 0, tabName = "Common" } };
         public List<CacheObjectInfo> objects = new List<CacheObjectInfo>();
@@ -102,7 +73,6 @@ namespace Utilities.AssetsCache
         private int _tabIndex;
         private bool _isEditMode;
         private bool _isShowTabs;
-        private bool _isShowTip = true;
         private bool _showOptions;
         private ReorderableList _objectsReorderableList;
         private ReorderableList _tabsReorderableList;
@@ -118,9 +88,6 @@ namespace Utilities.AssetsCache
 
             _currentTabViewWidth = 110;
             _cursorChangeRect = new Rect(_currentTabViewWidth, 0, 5, position.size.y);
-            ShowPath = EditorPrefs.GetBool("Assets_Cache_ShowPath", false);
-            ShowNumber = EditorPrefs.GetBool("Assets_Cache_ShowNumber", false);
-            _isShowTip = EditorPrefs.GetBool("Assets_Cache_ShowTip", true);
 
             EditorApplication.update += Update;
         }
@@ -130,11 +97,11 @@ namespace Utilities.AssetsCache
             EditorApplication.update -= Update;
         }
 
-        [MenuItem("Tools/Assets Cache")]
+        [MenuItem("Tools/Assets Pinner")]
         public static void Init()
         {
-            var w = GetWindow<AssetsCache>();
-            w.titleContent.text = "Assets Cache";
+            var w = GetWindow<AssetsPinner>();
+            w.titleContent.text = "Assets Pinner";
             w.Read();
             w.Show();
         }
@@ -173,7 +140,7 @@ namespace Utilities.AssetsCache
 
         private void UpdatePreviewSize()
         {
-            _s.previewTexture.fixedWidth = _s.previewTexture.fixedHeight = tabs[_tabIndex].iconSize;
+
         }
 
         private void OnGUI()
@@ -190,11 +157,6 @@ namespace Utilities.AssetsCache
             if (_isShowTabs)
             {
                 DisplayTabs();
-                contentWidth = position.width - _currentTabViewWidth - 80;
-            }
-            else
-            {
-                contentWidth = position.width - 80;
             }
 
             DisplayObjectGroup();
@@ -204,16 +166,17 @@ namespace Utilities.AssetsCache
 
         private void ShowOptions()
         {
-            ShowPath = GUILayout.Toggle(ShowPath, StrShowPath, _s.expandWidthFalse);
-            ShowNumber = GUILayout.Toggle(ShowNumber, StrShowNumber, _s.expandWidthFalse);
+            bool ShowPath = false;
+            bool ShowNumber = false;
+
+            ShowPath = GUILayout.Toggle(ShowPath, "ShowPath", _s.expandWidthFalse);
+            ShowNumber = GUILayout.Toggle(ShowNumber, "ShowNumber", _s.expandWidthFalse);
+
             EditorGUIUtility.labelWidth = 60;
-            var iconSize = EditorGUILayout.Slider("Icon Size", tabs[_tabIndex].iconSize, 20, 100);
-            if (Math.Abs(iconSize - tabs[_tabIndex].iconSize) > .01f)
-            {
-                tabs[_tabIndex].iconSize = iconSize;
-                UpdatePreviewSize();
-                Save();
-            }
+            var iconSize = EditorGUILayout.Slider("Icon Size", 20, 20, 100);
+
+            UpdatePreviewSize();
+            Save();
         }
 
         private void DisplayObjects()
@@ -228,14 +191,7 @@ namespace Utilities.AssetsCache
             if (_isEditMode) DisplayReorderList();
             else
             {
-                if (tabs[_tabIndex].gridView)
-                {
-                    DisplayGridObject();
-                }
-                else
-                {
-                    DisplayListObjects();
-                }
+                DisplayListObjects();
             }
 
             GUILayout.EndScrollView();
@@ -282,76 +238,6 @@ namespace Utilities.AssetsCache
             GUILayout.EndVertical();
         }
 
-        private void DisplayGridObject()
-        {
-            var size = tabs[_tabIndex].iconSize;
-            int itemsPerRow = (int)(contentWidth / size);
-            if (itemsPerRow <= 0)
-            {
-                itemsPerRow = 1;
-            }
-
-            GUILayout.BeginVertical();
-            int page = 0;
-            int countItems = 0;
-            GUILayout.BeginHorizontal();
-
-            bool isHoleControl = Event.current.control;
-            bool isHoleAlt = Event.current.alt;
-            bool isMouseDown = Event.current.type == EventType.MouseDown;
-
-            foreach (var o in filterList)
-            {
-                if (o.previewTexture == null)
-                {
-                    o.previewTexture = AssetPreview.GetAssetPreview(o.obj);
-                    if (o.previewTexture == null && !o.isPrefab)
-                    {
-                        o.previewTexture = AssetPreview.GetMiniThumbnail(o.obj);
-                    }
-                }
-
-                GUILayout.BeginVertical(EditorStyles.helpBox);
-                GUILayout.Label(o.previewTexture, GUILayout.Width(size), GUILayout.Height(size));
-                GUILayout.EndVertical();
-                var lastPreviewRect = GUILayoutUtility.GetLastRect();
-                if (isMouseDown && lastPreviewRect.Contains(Event.current.mousePosition))
-                {
-                    if (isHoleControl)
-                    {
-                        o.Ping();
-                    }
-                    else if (isHoleAlt)
-                    {
-                        UpdateRemove(o);
-                        GUILayout.EndHorizontal();
-                        break;
-                    }
-                    else if (lastPreviewRect.Contains(Event.current.mousePosition))
-                    {
-                        isDrag = true;
-                        GUIUtility.hotControl = 0;
-                        DragAndDrop.PrepareStartDrag();
-                        DragAndDrop.objectReferences = new[] { o.obj };
-                        DragAndDrop.SetGenericData("DRAG_ID", o.obj);
-                        DragAndDrop.StartDrag("A");
-                    }
-                }
-
-                page++;
-                countItems++;
-                if (countItems >= itemsPerRow)
-                {
-                    countItems = 0;
-                    GUILayout.EndHorizontal();
-                    GUILayout.BeginHorizontal();
-                }
-            }
-
-            GUILayout.EndHorizontal();
-            GUILayout.EndVertical();
-        }
-
         private void DisplayListObjects()
         {
             GUILayout.BeginVertical();
@@ -378,11 +264,6 @@ namespace Utilities.AssetsCache
                         {
                             o.previewTexture = AssetPreview.GetMiniThumbnail(o.obj);
                         }
-                    }
-
-                    if (_showNumber)
-                    {
-                        GUILayout.Label(count.ToString(), _s.expandWidthFalse);
                     }
 
                     GUILayout.Label(o.previewTexture, _s.previewTexture);
@@ -418,20 +299,6 @@ namespace Utilities.AssetsCache
                         GUILayout.EndHorizontal();
                         break;
                     }
-
-                    if (_showPath)
-                    {
-                        if (!string.IsNullOrEmpty(o.path))
-                        {
-                            GUILayout.Label(o.path, _s.text1);
-                        }
-                        else if (!string.IsNullOrEmpty(o.prefabPath))
-                        {
-                            GUILayout.Label(o.prefabPath, _s.text1);
-                        }
-                    }
-
-                    // ViewParents(o);
                 }
                 GUILayout.EndHorizontal();
 
@@ -679,46 +546,6 @@ namespace Utilities.AssetsCache
             return list;
         }
 
-        private void ViewParents(CacheObjectInfo cpInfo)
-        {
-            if (!_showPath || cpInfo.parents.Count <= 0) return;
-            GUILayout.BeginHorizontal();
-            foreach (var parent in cpInfo.parents)
-            {
-                if (parent == null)
-                {
-                    continue;
-                }
-
-                if (GUILayout.Button(parent, _s.parent, _s.expandWidthFalse))
-                {
-                    // Ping(parent.transform);
-                }
-            }
-
-            GUILayout.EndHorizontal();
-        }
-
-        private void Ping(Component component)
-        {
-            //             if (!string.IsNullOrEmpty(AssetDatabase.GetAssetPath(component)))
-            //             {
-            // #if UNITY_2021_OR_NEWER
-            //             var stage = PrefabStageUtility.OpenPrefab(AssetDatabase.GetAssetPath(component));
-            //             currentObject = stage.prefabContentsRoot;
-            // #else
-            //                 AssetDatabase.OpenAsset(AssetDatabase.LoadAssetAtPath<GameObject>(AssetDatabase.GetAssetPath(component)));
-            //                 currentObject = PrefabStageUtility.GetCurrentPrefabStage().prefabContentsRoot;
-            // #endif
-            //
-            //                 Find(currentObject);
-            //             }
-
-            SceneView.lastActiveSceneView.LookAt(component.gameObject.transform.position);
-            Selection.activeObject = component;
-            EditorGUIUtility.PingObject(component);
-        }
-
         private void GetScenePath(Transform obj, ref string path)
         {
             var parent = obj.parent;
@@ -887,7 +714,6 @@ namespace Utilities.AssetsCache
 
         private void Read()
         {
-
             EditorCacheSave editorCacheSave;
             editorCacheSave = GetLocal<EditorCacheSave>(LocalFilePathTemplate);
             if (editorCacheSave == null)
@@ -933,8 +759,6 @@ namespace Utilities.AssetsCache
             public List<CacheObjectInfo> list = new List<CacheObjectInfo>();
             public CacheObjectInfo selected;
             public Editor editor;
-            public float iconSize = 20;
-            public bool gridView;
         }
     }
 
