@@ -21,7 +21,7 @@ namespace Utilities.AssetsCache
         /// <summary>
         /// 基础名称
         /// </summary>
-        internal const string BaseName = "AssetsCache";
+        internal const string BaseName = "AssetsCache.json";
 
         /// <summary>
         /// 项目路径
@@ -36,7 +36,7 @@ namespace Utilities.AssetsCache
         /// <summary>
         /// 本地序列化文件路径模板
         /// </summary>
-        internal static readonly string LocalFilePathTemplate = Path.GetFullPath(Path.Combine(s_UserSettingsPath, BaseName + ".{0}.json"));
+        internal static readonly string LocalFilePathTemplate = Path.GetFullPath(Path.Combine(s_UserSettingsPath, BaseName));
 
         #endregion
 
@@ -95,21 +95,9 @@ namespace Utilities.AssetsCache
         private const string StrRemove = "-";
         private const string StrShowPath = "Show path";
         private const string StrShowNumber = "Show number";
-        private const string StrTip = "Tip";
-        private const string StrList = "List";
-        private const string StrGrid = "Grid";
         private bool isDrag;
         private bool _showPath;
         private float contentWidth;
-
-        private int _tipIndex;
-
-        private List<string> _tipList = new List<string>()
-        {
-            "Hold control & click to ping",
-            "Hold alt & click to remove",
-            "Click to icon, drag and drop to create object or reference",
-        };
 
         private bool ShowPath
         {
@@ -136,10 +124,7 @@ namespace Utilities.AssetsCache
         public List<CacheTabInfo> tabs = new List<CacheTabInfo>() { new CacheTabInfo { id = 0, tabName = "Common" } };
         public List<CacheObjectInfo> objects = new List<CacheObjectInfo>();
         public List<CacheObjectInfo> filterList = new List<CacheObjectInfo>();
-        public string progress;
 
-        public string searchText = string.Empty;
-        private string _oldSearchText;
         private Vector2 _objectsScrollPosition;
         private Vector2 _tabsScrollPosition;
         private EditorCacheStyle _s;
@@ -156,12 +141,9 @@ namespace Utilities.AssetsCache
         private bool _isResize;
         private Rect _cursorChangeRect;
         private GUILayoutOption expandWidthFalse = GUILayout.ExpandWidth(false);
-        private double _time;
 
         private void OnEnable()
         {
-            _time = EditorApplication.timeSinceStartup;
-            _oldSearchText = "old";
             InitReOrderTabList();
 
             _currentTabViewWidth = 110;
@@ -189,20 +171,7 @@ namespace Utilities.AssetsCache
 
         private void Update()
         {
-            if (!_isShowTip)
-            {
-                return;
-            }
 
-            if (EditorApplication.timeSinceStartup - _time >= 3)
-            {
-                _time = EditorApplication.timeSinceStartup;
-                _tipIndex++;
-                if (_tipIndex >= _tipList.Count)
-                {
-                    _tipIndex = 0;
-                }
-            }
         }
 
         private void InitReOrderTabList()
@@ -261,7 +230,6 @@ namespace Utilities.AssetsCache
             DisplayObjectGroup();
 
             GUILayout.EndHorizontal();
-            if (_isShowTip) GUILayout.Label(_tipList[_tipIndex], EditorStyles.helpBox);
         }
 
         private void ShowOptions()
@@ -323,56 +291,18 @@ namespace Utilities.AssetsCache
             if (GUILayout.Button(StrShowOptions, _showOptions ? _s.buttonStyle : EditorStyles.toolbarButton, _s.expandWidthFalse))
             {
                 _showOptions = !_showOptions;
+                _isEditMode = _showOptions;
             }
 
-            if (GUILayout.Button(tabs[_tabIndex].gridView ? StrList : StrGrid, EditorStyles.toolbarButton, _s.expandWidthFalse))
-            {
-                tabs[_tabIndex].gridView = !tabs[_tabIndex].gridView;
-            }
-
-            if (GUILayout.Button(StrTip, _isShowTip ? _s.buttonStyle : EditorStyles.toolbarButton, _s.expandWidthFalse))
-            {
-                _isShowTip = !_isShowTip;
-                EditorPrefs.SetBool("Assets_Cache_ShowTip", _isShowTip);
-            }
-
-            searchText = EditorGUILayout.TextField(searchText, _s.toolbarSeachTextField);
-            GUILayout.Label(progress, _s.expandWidthFalse);
             if (GUILayout.Button(StrReset, EditorStyles.toolbarButton, _s.expandWidthFalse))
             {
                 objects.Clear();
                 filterList.Clear();
-                progress = $"{filterList.Count.ToString()}/{objects.Count.ToString()}";
                 Focus();
                 Save();
             }
 
-            if (_oldSearchText != searchText)
-            {
-                _oldSearchText = searchText;
-                Filter();
-            }
-
-            if (!_isEditMode)
-            {
-                if (GUILayout.Button(StrEdit, _s.buttonStyle, _s.expandWidthFalse))
-                {
-                    _isEditMode = true;
-                }
-            }
-            else
-            {
-                if (GUILayout.Button(StrDone, _s.buttonStyle, _s.expandWidthFalse))
-                {
-                    _isEditMode = false;
-                }
-            }
-
             GUILayout.EndHorizontal();
-        }
-
-        private void DisplayDetail()
-        {
         }
 
         private void DisplayReorderList()
@@ -392,7 +322,6 @@ namespace Utilities.AssetsCache
             }
 
             GUILayout.BeginVertical();
-            int count = 0;
             int page = 0;
             int countItems = 0;
             GUILayout.BeginHorizontal();
@@ -401,10 +330,8 @@ namespace Utilities.AssetsCache
             bool isHoleAlt = Event.current.alt;
             bool isMouseDown = Event.current.type == EventType.MouseDown;
 
-            CacheObjectInfo hoverObject = null;
             foreach (var o in filterList)
             {
-                bool ignore = false;
                 if (o.previewTexture == null)
                 {
                     o.previewTexture = AssetPreview.GetAssetPreview(o.obj);
@@ -504,29 +431,24 @@ namespace Utilities.AssetsCache
                         }
                     }
 
-                    GUILayout.BeginVertical();
+                    GUILayout.Label(o.GetDisplayName(), GUILayout.MinWidth(30));
+                    if (o.location == CacheObjectLocation.Assets)
                     {
-                        GUILayout.BeginHorizontal();
-                        GUILayout.Label(o.GetDisplayName(), GUILayout.MinWidth(30));
-                        if (o.location == CacheObjectLocation.Assets)
-                        {
-                            if (GUILayout.Button(StrOpen, _s.expandWidthFalse))
-                            {
-                                ignore = true;
-                                o.Ping();
-                            }
-                        }
-
-                        if (GUILayout.Button(StrRemove, _s.expandWidthFalse))
+                        if (GUILayout.Button(StrOpen, _s.expandWidthFalse))
                         {
                             ignore = true;
-                            UpdateRemove(o);
-                            GUILayout.EndHorizontal();
-                            break;
+                            o.Ping();
                         }
-
-                        GUILayout.EndHorizontal();
                     }
+
+                    if (GUILayout.Button(StrRemove, _s.expandWidthFalse))
+                    {
+                        ignore = true;
+                        UpdateRemove(o);
+                        GUILayout.EndHorizontal();
+                        break;
+                    }
+
                     if (_showPath)
                     {
                         if (!string.IsNullOrEmpty(o.path))
@@ -540,7 +462,6 @@ namespace Utilities.AssetsCache
                     }
 
                     // ViewParents(o);
-                    GUILayout.EndVertical();
                 }
                 GUILayout.EndHorizontal();
 
@@ -587,7 +508,6 @@ namespace Utilities.AssetsCache
         {
             objects.Remove(o);
             filterList.Remove(o);
-            progress = $"{filterList.Count.ToString()}/{objects.Count.ToString()}";
             Save();
             Focus();
         }
@@ -666,17 +586,8 @@ namespace Utilities.AssetsCache
 
         private void Filter()
         {
-            if (string.IsNullOrEmpty(searchText))
-            {
-                filterList = objects;
-            }
-            else
-            {
-                var temp = searchText.ToLower();
-                filterList = objects.Where(s => s.Name.ToLower().Contains(temp)).ToList();
-            }
+            filterList = objects;
 
-            progress = $"{filterList.Count.ToString()}/{objects.Count.ToString()}";
             _objectsReorderableList =
                 new ReorderableList(filterList, typeof(CacheObjectInfo), true, false, false, false);
             _objectsReorderableList.drawElementCallback += DrawObjectElementCallback;
@@ -731,10 +642,9 @@ namespace Utilities.AssetsCache
                         };
                         item.SetDisplayName();
 
-                        CacheObjectLocation location = CacheObjectLocation.Assets;
                         if (currentPrefab != null)
                         {
-                            item.prefabPath = currentPrefab.prefabAssetPath;
+                            item.prefabPath = currentPrefab.assetPath;
                             item.location = CacheObjectLocation.Prefab;
                         }
                         else
