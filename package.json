@@ -1,8 +1,14 @@
 {
-  "name": "com.thinhabc01.assetscache",
+  "name": "com.thinhabc01.assetspinner",
   "version": "1.0.0",
-  "displayName": "Assets Cache",
-  "description": "Assets Cache help you to save your dev and design game time",
+  "displayName": "Assets Pinner",
+  "description": "Assets Pinner help you to save your dev and design game time",
+  "keywords": [
+        "project",
+        "pin board",
+        "favorite",
+        "asset"
+    ],
   "unity": "2019.4",
   "author": {
     "name": "thinhabc01",
