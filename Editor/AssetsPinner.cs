@@ -220,7 +220,7 @@ namespace Tools.AssetsPinner
                 _isEditMode = _showOptions;
             }
 
-            if (GUILayout.Button(StrReset, EditorStyles.toolbarButton, _s.expandWidthFalse))
+            if (GUILayout.Button("Delete All", EditorStyles.toolbarButton, _s.expandWidthFalse))
             {
                 objects.Clear();
                 filterList.Clear();
@@ -267,32 +267,38 @@ namespace Tools.AssetsPinner
                     }
 
                     GUILayout.Label(o.previewTexture, _s.previewTexture);
-                    var lastPreviewRect = GUILayoutUtility.GetLastRect();
-                    if (lastPreviewRect.Contains(Event.current.mousePosition))
+                    GUILayout.Label(o.GetDisplayName(), GUILayout.MinWidth(30));
+
+                    if (GUILayout.Button("O", _s.expandWidthFalse))
                     {
-                        if (isMouseDown)
+                        if (o.obj == null)
                         {
-                            isDrag = true;
-                            ignore = true;
-                            GUIUtility.hotControl = 0;
-                            DragAndDrop.PrepareStartDrag();
-                            DragAndDrop.objectReferences = new[] { o.obj };
-                            DragAndDrop.SetGenericData("DRAG_ID", o.obj);
-                            DragAndDrop.StartDrag("A");
+                            o.Ping();
+                        }
+                        else if (o.obj is DefaultAsset)
+                        {
+                            AssetDatabase.OpenAsset(o.obj);
+                        }
+                        else if (!string.IsNullOrEmpty(o.prefabPath))
+                        {
+                            AssetDatabase.OpenAsset(o.obj);
+                        }
+                        else
+                        {
+                            AssetDatabase.OpenAsset(o.obj);
                         }
                     }
 
-                    GUILayout.Label(o.GetDisplayName(), GUILayout.MinWidth(30));
                     if (o.location == CacheObjectLocation.Assets)
                     {
-                        if (GUILayout.Button(StrOpen, _s.expandWidthFalse))
+                        if (GUILayout.Button("P", _s.expandWidthFalse))
                         {
                             ignore = true;
                             o.Ping();
                         }
                     }
 
-                    if (GUILayout.Button(StrRemove, _s.expandWidthFalse))
+                    if (GUILayout.Button("-", _s.expandWidthFalse))
                     {
                         ignore = true;
                         UpdateRemove(o);
@@ -303,36 +309,16 @@ namespace Tools.AssetsPinner
                 GUILayout.EndHorizontal();
 
                 var itemRect = GUILayoutUtility.GetLastRect();
-                if (!ignore && Event.current.type == EventType.MouseDown &&
-                    itemRect.Contains(Event.current.mousePosition))
+                if (!ignore && Event.current.type == EventType.MouseDrag &&
+                itemRect.Contains(Event.current.mousePosition))
                 {
-                    if (isHoleControl)
-                    {
-                        o.Ping();
-                    }
-                    else if (isHoleAlt)
-                    {
-                        ignore = true;
-                        UpdateRemove(o);
-                        GUILayout.EndHorizontal();
-                        break;
-                    }
-                    else if (o.obj == null)
-                    {
-                        o.Ping();
-                    }
-                    else if (o.obj is DefaultAsset)
-                    {
-                        AssetDatabase.OpenAsset(o.obj);
-                    }
-                    else if (!string.IsNullOrEmpty(o.prefabPath))
-                    {
-                        AssetDatabase.OpenAsset(o.obj);
-                    }
-                    else
-                    {
-                        AssetDatabase.OpenAsset(o.obj);
-                    }
+                    isDrag = true;
+                    ignore = true;
+                    GUIUtility.hotControl = 0;
+                    DragAndDrop.PrepareStartDrag();
+                    DragAndDrop.objectReferences = new[] { o.obj };
+                    DragAndDrop.SetGenericData("DRAG_ID", o.obj);
+                    DragAndDrop.StartDrag("A");
                 }
 
                 count++;
